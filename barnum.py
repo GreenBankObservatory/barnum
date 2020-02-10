@@ -47,16 +47,16 @@ def get_users(path: Path):
         return yaml.load(yaml_file, Loader=yaml.Loader)
 
 
-def _barnum(host, user=None, bailey_args=None, verbose=False, dry_run=False):
+def _barnum(host, user=None, bailey_args=None, verbose=False, dry_run=False, bailey_cmd="bailey"):
     if user:
         logger.debug(f"Processing {user}@{host}")
     else:
         logger.debug(f"Processing {host}")
 
     if host != socket.gethostname():
-        cmd = ["ssh", "-o", "LogLevel=error", host, str(SCRIPT_DIR / "bailey")]
+        cmd = ["ssh", "-o", "LogLevel=error", host, bailey_cmd]
     else:
-        cmd = [str(SCRIPT_DIR / "bailey")]
+        cmd = [bailey_cmd]
 
     if user:
         cmd.append(user)
@@ -74,14 +74,14 @@ def _barnum(host, user=None, bailey_args=None, verbose=False, dry_run=False):
         return check_output(cmd, verbose=verbose)
 
 
-def barnum_multi_thread(hosts, bailey_args=None, verbose=None, dry_run=False):
+def barnum_multi_thread(hosts, bailey_args=None, verbose=None, dry_run=False, bailey_cmd="bailey"):
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
         # Start threads; create dict of future: host
         if bailey_args is None:
             bailey_args = []
         results = {
             executor.submit(
-                _barnum, host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run
+                _barnum, host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run, bailey_cmd=bailey_cmd
             ): host
             for host in hosts
         }
@@ -95,9 +95,9 @@ def barnum_multi_thread(hosts, bailey_args=None, verbose=None, dry_run=False):
                 print(data)
 
 
-def barnum_single_thread(hosts, bailey_args=None, verbose=None, dry_run=False):
+def barnum_single_thread(hosts, bailey_args=None, verbose=None, dry_run=False, bailey_cmd="bailey"):
     for host in hosts:
-        print(_barnum(host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run))
+        print(_barnum(host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run, bailey_cmd=bailey_cmd))
 
 
 def main():
@@ -119,6 +119,7 @@ def main():
             bailey_args=args.bailey_args,
             verbose=args.verbose,
             dry_run=args.dry_run,
+            bailey_cmd=args.bailey_cmd
         )
         print("---")
         print(output)
@@ -133,6 +134,7 @@ def main():
                 bailey_args=args.bailey_args,
                 verbose=args.verbose,
                 dry_run=args.dry_run,
+                bailey_cmd=args.bailey_cmd
             )
         else:
             barnum_multi_thread(
@@ -140,6 +142,7 @@ def main():
                 bailey_args=args.bailey_args,
                 verbose=args.verbose,
                 dry_run=args.dry_run,
+                bailey_cmd=args.bailey_cmd
             )
 
 
@@ -194,6 +197,9 @@ def parse_args():
     )
     parser.add_argument(
         "--config-path", type=Path, default=SCRIPT_DIR / "circus_users.yaml"
+    )
+    parser.add_argument(
+        "--bailey-cmd", default="bailey"
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
