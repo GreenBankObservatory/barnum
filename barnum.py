@@ -223,27 +223,19 @@ def parse_args():
     # circus arguments
     try:
         index = sys.argv.index("--")
-        sys.argv, bailey_and_circus_args = sys.argv[:index], sys.argv[index + 1 :]
+        sys.argv, bailey_args = sys.argv[:index], sys.argv[index + 1 :]
     except ValueError:
-        bailey_and_circus_args = []
-
-    try:
-        index = bailey_and_circus_args.index("--")
-        bailey_args, circus_args = bailey_and_circus_args[:index], bailey_and_circus_args[index + 1 :]
-    except ValueError:
-        bailey_args = bailey_and_circus_args
-        circus_args = []
+        bailey_args = []
 
     parsed_args = parser.parse_args()
 
     if parsed_args.verbose:
-        bailey_args.append("--verbose")
+        bailey_args = ["--verbose", *bailey_args]
 
     if not parsed_args.no_colors:
-        bailey_args.append("--force-colors")
+        bailey_args = ["--force-colors", *bailey_args]
 
-    parsed_args.bailey_args = [*bailey_args, "--", *circus_args]
-
+    parsed_args.bailey_args = bailey_args
     return parsed_args
 
 
