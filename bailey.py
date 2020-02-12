@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 """Manage circus instances on a given host"""
 
 from pathlib import Path
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 ENDPOINT_REGEX = re.compile(r"(\w+://)\d+\.\d+\.\d+\.\d+(:\d+)")
 HOST = socket.gethostname()
 
+
 def _circus(circus_config_path, circus_args=None, dry_run=False):
     if not circus_args:
         circus_args = ["status"]
@@ -42,7 +45,9 @@ def _circus(circus_config_path, circus_args=None, dry_run=False):
 def handle_user(user, circus_args=None, dry_run=False):
     circus_config_path = Path("/", "users", user, "circus", HOST, "circus.ini")
     assert circus_config_path.exists()
-    circus_result = _circus(circus_config_path, circus_args=circus_args, dry_run=dry_run)
+    circus_result = _circus(
+        circus_config_path, circus_args=circus_args, dry_run=dry_run
+    )
     print(circus_result)
 
 
@@ -121,20 +126,19 @@ class WideHelpFormatter(argparse.HelpFormatter):
             kwargs["width"] = width
         super().__init__(*args, **kwargs)
 
-
-class ExtraArgumentParser(argparse.ArgumentParser):
-    def format_usage(self):
-        usage = super().format_usage()
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = super()._format_usage(usage, actions, groups, prefix)
         usage = f"{usage.strip()} [-- CIRCUS_ARG [CIRCUS_ARG ...]]"
         return usage
 
+
 def parse_args():
-    parser = ExtraArgumentParser(formatter_class=WideHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=WideHelpFormatter)
     parser.add_argument("user", nargs="?")
     parser.add_argument(
         "-D", "--dry-run", action="store_true", help="Don't make any changes"
     )
-    parser.add_argument("--no-color", action="store_true", help="No colors")
+    parser.add_argument("--force-colors", action="store_true", help="No colors")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
     )
@@ -147,7 +151,7 @@ def parse_args():
     except ValueError:
         circus_args = None
 
-    parsed_args = parser.parse_known_intermixed_args()[0]
+    parsed_args = parser.parse_args()
     if circus_args:
         parsed_args.circus_args = circus_args
     else:
@@ -164,7 +168,7 @@ def main():
         init_logging(logging.INFO)
     # logger.debug(f"args: {args}")
 
-    init_colorama(strip=args.no_color)
+    init_colorama(strip=False if args.force_colors else None)
     if args.user:
         handle_user(user=args.user, circus_args=args.circus_args, dry_run=args.dry_run)
     else:

@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# -*- coding: utf-8 -*-
 
 
 import argparse
@@ -47,7 +46,9 @@ def get_users(path: Path):
         return yaml.load(yaml_file, Loader=yaml.Loader)
 
 
-def _barnum(host, user=None, bailey_args=None, verbose=False, dry_run=False, bailey_cmd="bailey"):
+def _barnum(
+    host, user=None, bailey_args=None, dry_run=False, bailey_cmd="bailey"
+):
     if user:
         logger.debug(f"Processing {user}@{host}")
     else:
@@ -61,27 +62,30 @@ def _barnum(host, user=None, bailey_args=None, verbose=False, dry_run=False, bai
     if user:
         cmd.append(user)
 
-    if verbose:
-        cmd.append("--verbose")
-
-    if bailey_args:
+    if bailey_args is not None:
         cmd.extend(bailey_args)
 
     if dry_run:
         return f"DRY RUN; would execute: {' '.join(cmd)}"
     else:
         logger.debug(f"bailey cmd: {' '.join(cmd)}")
-        return check_output(cmd, verbose=verbose)
+        return check_output(cmd, verbose="--verbose" in bailey_args)
 
 
-def barnum_multi_thread(hosts, bailey_args=None, verbose=None, dry_run=False, bailey_cmd="bailey"):
+def barnum_multi_thread(
+    hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"
+):
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
         # Start threads; create dict of future: host
         if bailey_args is None:
             bailey_args = []
         results = {
             executor.submit(
-                _barnum, host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run, bailey_cmd=bailey_cmd
+                _barnum,
+                host,
+                bailey_args=bailey_args,
+                dry_run=dry_run,
+                bailey_cmd=bailey_cmd,
             ): host
             for host in hosts
         }
@@ -95,9 +99,18 @@ def barnum_multi_thread(hosts, bailey_args=None, verbose=None, dry_run=False, ba
                 print(data)
 
 
-def barnum_single_thread(hosts, bailey_args=None, verbose=None, dry_run=False, bailey_cmd="bailey"):
+def barnum_single_thread(
+    hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"
+):
     for host in hosts:
-        print(_barnum(host, bailey_args=bailey_args, verbose=verbose, dry_run=dry_run, bailey_cmd=bailey_cmd))
+        print(
+            _barnum(
+                host,
+                bailey_args=bailey_args,
+                dry_run=dry_run,
+                bailey_cmd=bailey_cmd,
+            )
+        )
 
 
 def main():
@@ -117,9 +130,8 @@ def main():
             host=host,
             user=user,
             bailey_args=args.bailey_args,
-            verbose=args.verbose,
             dry_run=args.dry_run,
-            bailey_cmd=args.bailey_cmd
+            bailey_cmd=args.bailey_cmd,
         )
         print("---")
         print(output)
@@ -132,17 +144,15 @@ def main():
             barnum_single_thread(
                 hosts,
                 bailey_args=args.bailey_args,
-                verbose=args.verbose,
                 dry_run=args.dry_run,
-                bailey_cmd=args.bailey_cmd
+                bailey_cmd=args.bailey_cmd,
             )
         else:
             barnum_multi_thread(
                 hosts,
                 bailey_args=args.bailey_args,
-                verbose=args.verbose,
                 dry_run=args.dry_run,
-                bailey_cmd=args.bailey_cmd
+                bailey_cmd=args.bailey_cmd,
             )
 
 
@@ -178,16 +188,14 @@ class WideHelpFormatter(argparse.HelpFormatter):
             kwargs["width"] = width
         super().__init__(*args, **kwargs)
 
-
-class ExtraArgumentParser(argparse.ArgumentParser):
-    def format_usage(self):
-        usage = super().format_usage()
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = super()._format_usage(usage, actions, groups, prefix)
         usage = f"{usage.strip()} [-- BAILEY_ARG [BAILEY_ARG ...] [-- CIRCUS_ARG [CIRCUS_ARG ...]]]"
         return usage
 
 
 def parse_args():
-    parser = ExtraArgumentParser(formatter_class=WideHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=WideHelpFormatter)
     parser.add_argument(
         "user_and_host",
         nargs="?",
@@ -198,9 +206,7 @@ def parse_args():
     parser.add_argument(
         "--config-path", type=Path, default=SCRIPT_DIR / "circus_users.yaml"
     )
-    parser.add_argument(
-        "--bailey-cmd", default="bailey"
-    )
+    parser.add_argument("--bailey-cmd", default="bailey")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
     )
@@ -210,21 +216,28 @@ def parse_args():
     parser.add_argument(
         "--no-threads", action="store_true", help="Don't use threads for SSH'ing"
     )
+    parser.add_argument("--no-colors", action="store_true", help="No colors")
 
     # argparse doesn't seem to be able to handle this natively, so we manually
     # alter sys.argv before argparse sees it in order to pull out all of the
     # circus arguments
     try:
         index = sys.argv.index("--")
-        sys.argv, bailey_args = sys.argv[:index], sys.argv[index + 1:]
+        sys.argv, bailey_args = sys.argv[:index], sys.argv[index + 1 :]
     except ValueError:
-        bailey_args = None
+        bailey_args = []
 
-    parsed_args = parser.parse_known_intermixed_args()[0]
+    parsed_args = parser.parse_args()
     if bailey_args:
         parsed_args.bailey_args = bailey_args
     else:
-        parsed_args.bailey_args = None
+        parsed_args.bailey_args = []
+
+    if parsed_args.verbose:
+        parsed_args.bailey_args.append("--verbose")
+
+    if not parsed_args.no_colors:
+        parsed_args.bailey_args.append("--force-colors")
 
     return parsed_args
 
