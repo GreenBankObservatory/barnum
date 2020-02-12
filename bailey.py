@@ -44,7 +44,8 @@ def _circus(circus_config_path, circus_args=None, dry_run=False):
 
 def handle_user(user, circus_args=None, dry_run=False):
     circus_config_path = Path("/", "users", user, "circus", HOST, "circus.ini")
-    assert circus_config_path.exists()
+    if not circus_config_path.exists():
+        raise ValueError(f"Circus config path {circus_config_path} does not exist!")
     circus_result = _circus(
         circus_config_path, circus_args=circus_args, dry_run=dry_run
     )
