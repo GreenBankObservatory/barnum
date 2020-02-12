@@ -143,6 +143,7 @@ def parse_args():
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
     )
+    parser.add_argument("-C", "--circus-cmd", help="Specify the positional argument to send to circus")
     # argparse doesn't seem to be able to handle this natively, so we manually
     # alter sys.argv before argparse sees it in order to pull out all of the
     # circus arguments
@@ -154,10 +155,11 @@ def parse_args():
 
     parsed_args = parser.parse_args()
     if circus_args:
+        if parsed_args.circus_cmd:
+            parser.error("Cannot give both --circus-cmd and direct circus args")
         parsed_args.circus_args = circus_args
     else:
-        parsed_args.circus_args = None
-
+        parsed_args.circus_args = [parsed_args.circus_cmd]
     return parsed_args
 
 

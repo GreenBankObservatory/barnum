@@ -216,6 +216,7 @@ def parse_args():
     parser.add_argument(
         "--no-threads", action="store_true", help="Don't use threads for SSH'ing"
     )
+    parser.add_argument("-C", "--circus-cmd", help="Specify the positional argument to send to circus")
     parser.add_argument("--no-colors", action="store_true", help="No colors")
 
     # argparse doesn't seem to be able to handle this natively, so we manually
@@ -234,6 +235,9 @@ def parse_args():
 
     if not parsed_args.no_colors:
         bailey_args = ["--force-colors", *bailey_args]
+
+    if parsed_args.circus_cmd:
+        bailey_args = ["--circus-cmd", parsed_args.circus_cmd, *bailey_args]
 
     parsed_args.bailey_args = bailey_args
     return parsed_args
