@@ -55,7 +55,7 @@ def _barnum(
         logger.debug(f"Processing {host}")
 
     if host != socket.gethostname():
-        cmd = ["ssh", "-o", "LogLevel=error", host, bailey_cmd]
+        cmd = ["ssh", "-x", "-o", "LogLevel=error", host, bailey_cmd]
     else:
         cmd = [bailey_cmd]
 
