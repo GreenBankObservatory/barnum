@@ -158,8 +158,10 @@ def parse_args():
         if parsed_args.circus_cmd:
             parser.error("Cannot give both --circus-cmd and direct circus args")
         parsed_args.circus_args = circus_args
-    else:
+    elif parsed_args.circus_cmd:
         parsed_args.circus_args = [parsed_args.circus_cmd]
+    else:
+        parsed_args.circus_args = None
     return parsed_args
 
 
