@@ -2,21 +2,17 @@
 
 
 import argparse
-import configparser
-from pathlib import Path
-import yaml
-import shutil
-import logging
-import subprocess
-from typing import Tuple
-import re
-import socket
-import sys
-
 import concurrent.futures
-
+import logging
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
 from pathlib import Path
-from tabulate import tabulate
+
+import yaml
 
 ENDPOINT_REGEX = re.compile(r"(\w+://)\d+\.\d+\.\d+\.\d+(:\d+)")
 
@@ -43,19 +39,21 @@ def check_output(*args, verbose=False, **kwargs):
 
 def get_users(path: Path):
     with open(path) as yaml_file:
-        return yaml.load(yaml_file, Loader=yaml.Loader)
+        users = yaml.load(yaml_file, Loader=yaml.Loader)
+
+    if not users:
+        users = []
+    return users
 
 
-def _barnum(
-    host, user=None, bailey_args=None, dry_run=False, bailey_cmd="bailey"
-):
+def _barnum(host, user=None, bailey_args=None, dry_run=False, bailey_cmd="bailey"):
     if user:
         logger.debug(f"Processing {user}@{host}")
     else:
         logger.debug(f"Processing {host}")
 
     if host != socket.gethostname():
-        cmd = ["ssh", "-x", "-o", "LogLevel=error", host, bailey_cmd]
+        cmd = ["ssh", "-x", "-o", "LogLevel=error", host, f"PATH={os.environ.get('VIRTUAL_ENV')}/bin:$PATH", bailey_cmd]
     else:
         cmd = [bailey_cmd]
 
@@ -72,9 +70,7 @@ def _barnum(
         return check_output(cmd, verbose="--verbose" in bailey_args)
 
 
-def barnum_multi_thread(
-    hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"
-):
+def barnum_multi_thread(hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"):
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
         # Start threads; create dict of future: host
         if bailey_args is None:
@@ -99,9 +95,7 @@ def barnum_multi_thread(
                 print(data)
 
 
-def barnum_single_thread(
-    hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"
-):
+def barnum_single_thread(hosts, bailey_args=None, dry_run=False, bailey_cmd="bailey"):
     for host in hosts:
         print(
             _barnum(
@@ -121,6 +115,23 @@ def main():
         init_logging(logging.INFO)
     logger.debug(f"args: {args}")
 
+    if args.config_path:
+        config_path = args.config_path
+    else:
+        config_dir = Path(
+            os.environ.get('APPDATA') or
+            os.environ.get('XDG_CONFIG_HOME') or
+            os.path.join(os.environ['HOME'], '.config'),
+        ) / "barnum"
+        config_dir.mkdir(exist_ok=True, parents=True)
+        config_path = config_dir / "barnum_config.yaml"
+        if not config_path.exists():
+            with open(config_path, "w") as file:
+                file.write("# Add usernames here:\n# - <username1>\n# - <username1>")
+
+            logger.debug(f"Wrote config file template to {config_path}")
+
+
     if args.user_and_host:
         try:
             user, host = args.user_and_host.split("@")
@@ -136,8 +147,11 @@ def main():
         print("---")
         print(output)
     else:
-        users = get_users(args.config_path)
-        config_paths = get_config_paths(users)
+        users = get_users(config_path)
+        if not users:
+            logger.error(f"You must provide at least one username in {config_path}")
+            sys.exit(1)
+        config_paths = get_user_circus_ini_paths(users)
         hosts = get_unique_systemd_hosts(config_paths)
         logger.debug(f"Circus is configured on the following hosts: {', '.join(hosts)}")
         if args.no_threads:
@@ -160,7 +174,7 @@ def get_unique_systemd_hosts(config_file_paths):
     return set(path.parent.name for path in config_file_paths)
 
 
-def get_config_paths(users):
+def get_user_circus_ini_paths(users):
     paths = []
     for user in users:
         base = Path("/", "users", user, "circus").glob("*/circus.ini")
@@ -170,7 +184,7 @@ def get_config_paths(users):
 
 
 def init_logging(level):
-    """Initialize logging"""
+    """Initialize logging."""
     logging.getLogger().setLevel(level)
     _logger = logging.getLogger(__name__)
     console_handler = logging.StreamHandler()
@@ -204,7 +218,7 @@ def parse_args():
         "operations will affect ALL circus instances on host",
     )
     parser.add_argument(
-        "--config-path", type=Path, default=SCRIPT_DIR / "circus_users.yaml"
+        "--config-path", type=Path
     )
     parser.add_argument("--bailey-cmd", default="bailey")
     parser.add_argument(
@@ -216,7 +230,9 @@ def parse_args():
     parser.add_argument(
         "--no-threads", action="store_true", help="Don't use threads for SSH'ing"
     )
-    parser.add_argument("-C", "--circus-cmd", help="Specify the positional argument to send to circus")
+    parser.add_argument(
+        "-C", "--circus-cmd", help="Specify the positional argument to send to circus"
+    )
     parser.add_argument("--no-colors", action="store_true", help="No colors")
 
     # argparse doesn't seem to be able to handle this natively, so we manually

@@ -1,22 +1,21 @@
 #! /usr/bin/env python
 
-"""Manage circus instances on a given host"""
+"""Manage circus instances on a given host."""
 
-from pathlib import Path
-from typing import Tuple
 import argparse
 import configparser
 import logging
 import re
+import shutil
 import socket
 import sys
-import yaml
-import shutil
+from pathlib import Path
+from typing import Tuple
 
-from colorama import init as init_colorama, Fore, Style
-from tabulate import tabulate
+from colorama import Fore, Style
+from colorama import init as init_colorama
+
 from barnum import check_output
-
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +108,7 @@ def handle_host(circus_args=None, dry_run=False):
 
 
 def init_logging(level):
-    """Initialize logging"""
+    """Initialize logging."""
     logging.getLogger().setLevel(level)
     _logger = logging.getLogger(__name__)
     console_handler = logging.StreamHandler()
@@ -143,7 +142,9 @@ def parse_args():
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
     )
-    parser.add_argument("-C", "--circus-cmd", help="Specify the positional argument to send to circus")
+    parser.add_argument(
+        "-C", "--circus-cmd", help="Specify the positional argument to send to circus"
+    )
     # argparse doesn't seem to be able to handle this natively, so we manually
     # alter sys.argv before argparse sees it in order to pull out all of the
     # circus arguments
