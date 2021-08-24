@@ -171,13 +171,8 @@ def main():
         init_logging(logging.DEBUG)
     else:
         init_logging(logging.INFO)
-    # logger.debug(f"args: {args}")
 
-    if not args.force_colors:
-        init_colorama()
-    else:
-        init_colorama(strip=True)
-
+    init_colorama(strip=not args.force_colors)
 
     if args.user:
         handle_user(user=args.user, circus_args=args.circus_args, dry_run=args.dry_run)
