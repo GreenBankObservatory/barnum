@@ -53,7 +53,15 @@ def _barnum(host, user=None, bailey_args=None, dry_run=False, bailey_cmd="bailey
         logger.debug(f"Processing {host}")
 
     if host != socket.gethostname():
-        cmd = ["ssh", "-x", "-o", "LogLevel=error", host, f"PATH={os.environ.get('VIRTUAL_ENV')}/bin:$PATH", bailey_cmd]
+        cmd = [
+            "ssh",
+            "-x",
+            "-o",
+            "LogLevel=error",
+            host,
+            f"PATH={os.environ.get('VIRTUAL_ENV')}/bin:$PATH",
+            bailey_cmd,
+        ]
     else:
         cmd = [bailey_cmd]
 
@@ -118,11 +126,14 @@ def main():
     if args.config_path:
         config_path = args.config_path
     else:
-        config_dir = Path(
-            os.environ.get('APPDATA') or
-            os.environ.get('XDG_CONFIG_HOME') or
-            os.path.join(os.environ['HOME'], '.config'),
-        ) / "barnum"
+        config_dir = (
+            Path(
+                os.environ.get("APPDATA")
+                or os.environ.get("XDG_CONFIG_HOME")
+                or os.path.join(os.environ["HOME"], ".config"),
+            )
+            / "barnum"
+        )
         config_dir.mkdir(exist_ok=True, parents=True)
         config_path = config_dir / "barnum_config.yaml"
         if not config_path.exists():
@@ -130,7 +141,6 @@ def main():
                 file.write("# Add usernames here:\n# - <username1>\n# - <username1>")
 
             logger.debug(f"Wrote config file template to {config_path}")
-
 
     if args.user_and_host:
         try:
@@ -217,9 +227,7 @@ def parse_args():
         "affect only the circus instance for user@host. In the latter case, "
         "operations will affect ALL circus instances on host",
     )
-    parser.add_argument(
-        "--config-path", type=Path
-    )
+    parser.add_argument("--config-path", type=Path)
     parser.add_argument("--bailey-cmd", default="bailey")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Increase verbosity"
