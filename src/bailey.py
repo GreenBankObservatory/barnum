@@ -5,10 +5,11 @@
 import argparse
 import configparser
 import logging
-import re
+import shlex
 import shutil
 import socket
 import sys
+import urllib.parse
 from pathlib import Path
 from typing import Tuple
 
@@ -19,7 +20,6 @@ from barnum import check_output
 
 logger = logging.getLogger(__name__)
 
-ENDPOINT_REGEX = re.compile(r"(\w+://)\d+\.\d+\.\d+\.\d+(:\d+)")
 HOST = socket.gethostname()
 
 
@@ -30,14 +30,19 @@ def _circus(circus_config_path, circus_args=None, dry_run=False):
     circus_parser = configparser.ConfigParser(strict=False)
     circus_parser.read(circus_config_path)
     endpoint = circus_parser["circus"]["endpoint"]
-    match = ENDPOINT_REGEX.match(endpoint)
-    protocol, port = match.groups()
-    endpoint_with_host = f"{protocol}{HOST}{port}"
-    circus_cmd = ["circusctl", "--endpoint", endpoint_with_host, *circus_args]
+    if "0.0.0.0" in endpoint:
+        logger.debug("Converting 0.0.0.0 to explicit host reference")
+        pr = urllib.parse.urlparse(endpoint)
+        __, port = pr.netloc.split(":")
+        new_endpoint = pr._replace(netloc=f"{HOST}:{port}").geturl()
+        logger.debug(f"Converted {endpoint!r} to {new_endpoint!r}")
+        endpoint = new_endpoint
+
+    circus_cmd = ["circusctl", "--endpoint", endpoint, *circus_args]
     if dry_run:
         return f"DRY RUN; would execute: {' '.join(circus_cmd)}"
     else:
-        logger.debug(f"circus cmd: {' '.join(circus_cmd)}")
+        logger.debug(f"circus cmd: {shlex.join(circus_cmd)}")
         return check_output(circus_cmd)
 
 

@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -52,18 +51,15 @@ def _barnum(host, user=None, bailey_args=None, dry_run=False, bailey_cmd="bailey
     else:
         logger.debug(f"Processing {host}")
 
-    if host != socket.gethostname():
-        cmd = [
-            "ssh",
-            "-x",
-            "-o",
-            "LogLevel=error",
-            host,
-            f"PATH={os.environ.get('VIRTUAL_ENV')}/bin:$PATH",
-            bailey_cmd,
-        ]
-    else:
-        cmd = [bailey_cmd]
+    cmd = [
+        "ssh",
+        "-x",
+        "-o",
+        "LogLevel=error",
+        f"{user}@{host}",
+        f"PATH={os.environ.get('VIRTUAL_ENV')}/bin:$PATH",
+        bailey_cmd,
+    ]
 
     if user:
         cmd.append(user)
