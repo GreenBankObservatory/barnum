@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+from configparser import RawConfigParser
 from pathlib import Path
 
 import yaml
@@ -138,6 +139,7 @@ def main():
 
             logger.debug(f"Wrote config file template to {config_path}")
 
+    # TODO: handle user_and_host AND --list
     if args.user_and_host:
         try:
             user, host = args.user_and_host.split("@")
@@ -157,6 +159,10 @@ def main():
         if not users:
             logger.error(f"You must provide at least one username in {config_path}")
             sys.exit(1)
+
+        if args.list:
+            return handle_list(users)
+
         config_paths = get_user_circus_ini_paths(users)
         hosts = get_unique_systemd_hosts(config_paths)
         logger.debug(f"Circus is configured on the following hosts: {', '.join(hosts)}")
@@ -187,6 +193,28 @@ def get_user_circus_ini_paths(users):
         paths.extend(base)
 
     return paths
+
+
+def parse_circus_config(path):
+    cp = RawConfigParser()
+    cp.read(path)
+    return cp
+
+
+def handle_list(users, verbose=False):
+    user_and_host_to_config = {}
+    for user in users:
+        for config_path in Path("/", "users", user, "circus").glob("*/circus.ini"):
+            host = config_path.parent.name
+            user_and_host_to_config[f"{user}@{host}"] = config_path
+
+    for user_and_host, config in user_and_host_to_config.items():
+        config = parse_circus_config(config)
+        watchers = sorted(
+            [section.split(":")[1] for section in config if "watcher" in section]
+        )
+        for watcher in watchers:
+            print(f"{watcher}:{user_and_host}")
 
 
 def init_logging(level):
@@ -222,6 +250,12 @@ def parse_args():
         help="Can be EITHER user@host OR just host. In the former case, operations will "
         "affect only the circus instance for user@host. In the latter case, "
         "operations will affect ALL circus instances on host",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="Don't do anything, just list a mapping of watcher:user@host. "
+        "This DOES NOT tell you whether something is running, only what watchers are defined for each user/host",
     )
     parser.add_argument("--config-path", type=Path)
     parser.add_argument("--bailey-cmd", default="bailey")
