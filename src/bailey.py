@@ -257,7 +257,7 @@ class WideHelpFormatter(argparse.HelpFormatter):
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=WideHelpFormatter)
 
-    parser.add_argument("circus_cmd", nargs="?", default="status")
+    parser.add_argument("circus_cmds", nargs="*")
     parser.add_argument(
         "-D", "--dry-run", action="store_true", help="Don't make any changes"
     )
@@ -285,23 +285,16 @@ def parse_args():
     # circus arguments
     try:
         index = sys.argv.index("--")
-        sys.argv, circus_args = sys.argv[:index], sys.argv[index + 1 :]
+        sys.argv, circus_kwargs = sys.argv[:index], sys.argv[index + 1 :]
     except ValueError:
-        circus_args = None
+        circus_kwargs = None
 
     parsed_args = parser.parse_args()
-    if circus_args:
-        parsed_args.circus_args = circus_args
+    if circus_kwargs:
+        parsed_args.circus_kwargs = circus_kwargs
     else:
-        parsed_args.circus_args = []
+        parsed_args.circus_kwargs = []
 
-    #     if parsed_args.circus_cmd:
-    #         parser.error("Cannot give both --circus-cmd and direct circus args")
-    #     parsed_args.circus_args = circus_args
-    # elif parsed_args.circus_cmd:
-    #     parsed_args.circus_args = [parsed_args.circus_cmd]
-    # else:
-    #     parsed_args.circus_args = None
     return parsed_args
 
 
@@ -318,7 +311,8 @@ def main():
     logger.debug(f"args: {args}")
 
     init_colorama(strip=not args.force_colors)
-    if args.circus_cmd == "status":
+    # if args.circus_cmd == "status":
+    if False:
         print(
             handle_status(
                 circus_args=args.circus_args,
@@ -334,14 +328,11 @@ def main():
         circus_config_path = Path("/", "users", USER, "circus", HOST, "circus.ini")
         circusctl_cmd = _circus(
             circus_config_path,
-            circus_args=[args.circus_cmd, *args.circus_args],
+            circus_args=[*args.circus_cmds, *args.circus_kwargs],
             dry_run=args.dry_run,
             circusctl_path=args.circusctl_path,
         )
-        if args.verbosity > 1:
-            circus_cmd_str = f"$ {shlex.join(circusctl_cmd.args)}"
-        else:
-            circus_cmd_str = args.circus_cmd
+        circus_cmd_str = f"$ {shlex.join(circusctl_cmd.args)}"
         if circusctl_cmd.returncode == 0:
 
             print(
