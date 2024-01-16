@@ -87,8 +87,15 @@ def _bailey(
     if bailey_args is not None:
         cmd.extend(bailey_args)
 
-    return check_all_output(cmd, check=False, dry_run=dry_run)
+    result = check_all_output(cmd, check=False, dry_run=dry_run)
+    if "Permission denied" in result.stderr:
+        from getpass import getuser
 
+        raise ValueError(
+            f"Permission denied during user {getuser()}'s attempt to ssh to {user_and_host}. "
+            "Are you sure that you have added the relevant SSH key to your agent?"
+        )
+    return result
 
 def barnum_multi_thread(
     user_and_host_to_config,
