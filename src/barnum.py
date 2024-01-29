@@ -78,7 +78,7 @@ def _bailey(
         # Prevent SSH from prompting for passwords, passphrases, etc.
         "BatchMode=yes",
         user_and_host,
-        f"PATH={os.environ['PATH']}",
+        # f"PATH={os.environ['PATH']}",
         bailey_path,
         "--circusctl-path",
         circusctl_path,
@@ -93,7 +93,7 @@ def _bailey(
 
         raise ValueError(
             f"Permission denied during user {getuser()}'s attempt to ssh to {user_and_host}. "
-            "Are you sure that you have added the relevant SSH key to your agent?"
+            f"Are you sure that you have added the relevant SSH key to your agent?\n{result}"
         )
     return result
 
@@ -261,8 +261,8 @@ def main():
                 *args.circus_kwargs,
             ],
             dry_run=args.dry_run,
-            bailey_path=args.bailey_path,
-            circusctl_path=args.circusctl_path,
+            bailey_path=shutil.which(args.bailey_path),
+            circusctl_path=shutil.which(args.circusctl_path),
         )
     else:
         barnum_multi_thread(
@@ -275,8 +275,8 @@ def main():
                 *args.circus_kwargs,
             ],
             dry_run=args.dry_run,
-            bailey_path=args.bailey_path,
-            circusctl_path=args.circusctl_path,
+            bailey_path=shutil.which(args.bailey_path),
+            circusctl_path=shutil.which(args.circusctl_path),
         )
 
 
